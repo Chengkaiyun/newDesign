@@ -13,6 +13,7 @@ import csv
 from pandas.core.frame import DataFrame
 import pandas as pd
 import time
+import re
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -126,14 +127,14 @@ def main():
     global needColor
     global allColor
     global preOrder
-    global SSApreOrderDevice, MODpreOrderDevice, SSApreOrderDate, MODpreOrderDate
+    global preOrderDevice, preOrderDate
+    global preOrderMsg
     needColor = []
     allColor = []
     preOrder = []
-    SSApreOrderDevice = []
-    MODpreOrderDevice = []
-    SSApreOrderDate = []
-    MODpreOrderDate = []
+    preOrderDevice = []
+    preOrderDate = []
+
 
     result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
                                 range=color_RANGE_NAME).execute()
@@ -152,19 +153,22 @@ def main():
             if i == 0:
                 # 從第三欄開始計顏色碼
                 allColor = row
-                del(allColor[0:4]) # 只保留['52-', '53-', '57-', '54-', '26L-', '77-', 'E6-', 'E7-']
+                del(allColor[0:2]) # 只保留['52-', '53-', '57-', '54-', '26L-', '77-', 'E6-', 'E7-']
 
             # 開始判斷要什麼顏色
             else:
-                # 找出有打勾勾的顏色
-                for c in range(4, len(row)):
+                for c in range(2, len(row)):
+                    # 找出有打勾勾的顏色
                     if row[c] != "":
-                        needColor.append(row[3] + allColor[c - 4])
-                # 找出有要預購的人SSA
-                if row[1] != "":
-                    SSApreOrderDevice.append(row[1])
-                    SSApreOrderDate.append(row[3])
+                        needColor.append(row[1] + allColor[c-2])
 
+                    # 找出有要預購的人SSA
+                    if '月' in row[c]:
+                        preOrderDevice.append(row[1] + allColor[c-2])
+                        preOrderDate.append(row[c])
+        preOrderMsg = {}
+        preOrderMsg = dict(zip(preOrderDevice, preOrderDate))
+        print(preOrderMsg)
 
 def makeFile():
     oklabel['text'] = ""
@@ -301,9 +305,11 @@ def radioColorUpload():
 def DeletingColor(colSKU):
     #  先讀csv檔進來
     try:
+        # 單一檔案的
         if fileORdir == 1:
             print(inputfile)
             input = open(inputfile, 'r', encoding="utf-8", newline='')
+        # 資料夾的
         if fileORdir == 2:
             print(dirRoot + r"/withoutTrim.csv")
             input = open(dirRoot + r"/withoutTrim.csv", 'r', encoding="utf-8", newline='')
@@ -311,9 +317,10 @@ def DeletingColor(colSKU):
         output = open(dirRoot + "/" + outputfile + r".csv", 'w', encoding="utf-8", newline='')
         writer = csv.writer(output)
 
-        i = 0  # 為了把第一行header寫進去
-        for row in csv.reader(input):
+
+        for i, row in enumerate(csv.reader(input)):
             if row != ['\x1a']:
+                # 為了把第一行header寫進去
                 if i == 0:
                     writer.writerow(row)
                     # 判斷是不是給shopify/stock
@@ -325,14 +332,32 @@ def DeletingColor(colSKU):
                             output.close()
                             os.remove(dirRoot + "/" + outputfile + r".csv")
                         return
-                    i = i + 1
+
+                # 開始把要的顏色一行行寫進去: row[colSKU] = 'SSA03173E7-OA06'
                 else:
-                    for c in range(len(needColor)):
-                        try:
-                            if needColor[c] in row[colSKU]:
-                                writer.writerow(row)
-                        except Exception as e:
-                            print(e)
+                    pattern = '[0-9]{5}[A-Z0-9]{2,3}-'
+                    PreDevice = re.search(pattern, row[colSKU]).group()
+
+                    # 如果是需要的顏色
+                    if PreDevice in needColor:
+                        # 如果有預購狀態 row[8] and 是選擇上傳shopify的
+                        if PreDevice in preOrderDevice and typeRadio.get() == 1:
+                            temp = preOrderMsg[PreDevice].split('月')
+                            month = int(temp[0])     # 幾月
+                            around = temp[1]    # 上中下旬
+
+                            if (around == '上旬'):
+                                preOrderMsgGlobal = preOrder[countryDelRadio.get()][1]
+                            elif (around == '中旬'):
+                                preOrderMsgGlobal = preOrder[countryDelRadio.get()][2]
+                            elif (around == '下旬'):
+                                preOrderMsgGlobal = preOrder[countryDelRadio.get()][3]
+
+                            # 把@換成各國的月份，並清除空白(怕月份裡結尾有空白)
+                            preOrderMsgGlobal = " (" +preOrderMsgGlobal.replace('@',preOrder[countryDelRadio.get()][month+3].strip()) + ")"
+                            row[8] = row[8] + preOrderMsgGlobal
+                        writer.writerow(row)
+
         coloroklabel['text'] = "OK"
         input.close()
 
@@ -342,6 +367,7 @@ def DeletingColor(colSKU):
         if os.path.exists(dirRoot + "/" + outputfile + r".csv"):
             output.close()
             os.remove(dirRoot + "/" + outputfile + r".csv")
+
 
 
 def selectPath():
@@ -407,15 +433,23 @@ def Makedelete():
 
     DeletingColor(colSKU)
 
-
+# 判斷shopify/stock : typeRadio
 def radioColor():
     coloroklabel['text'] = ""
     if typeRadio.get() == 1:
-        rShopify['bg'] = '#fcea95'
+        rShopify['bg'] = '#ffc9c2'
         rStock['bg'] = '#F0F0F0'
     if typeRadio.get() == 2:
-        rStock['bg'] = '#fcea95'
+        rStock['bg'] = '#ffc9c2'
         rShopify['bg'] = '#F0F0F0'
+
+# 判斷預購要掛個國家 countryDelRadio
+def radioColorCountry():
+    coloroklabel['text'] = ""
+    for i, Dr in enumerate(DrArr):
+        Dr['bg'] = '#F0F0F0'
+        if countryDelRadio.get() == i:
+            Dr['bg'] = '#fcea95'
 
 
 def callbackFunc(event):
@@ -524,13 +558,12 @@ if __name__ == '__main__':
     for i in range(brandNum):
         checkBrand[i] = tk.StringVar()
 
-    i = 0
-    for oneBrand in allBrand[0]:
+    for i, oneBrand in enumerate(allBrand[0]):
         cBox[i] = tk.Checkbutton(my_window, text=oneBrand, variable=checkBrand[i], onvalue=oneBrand, offvalue="",
                                  font=myfont)
         cBox[i].grid(padx=5, pady=5, row=2, column=(i + 1))
         cBox[i].toggle()
-        i = i + 1
+
 
     # 選擇國家(為了SE名字)
     countryRadio = tk.IntVar()
@@ -550,43 +583,40 @@ if __name__ == '__main__':
     tk.Label(my_window, text="刪除顏色", bg="#C4E1E1", width="150", height="2", font=myfont).grid(padx=5, pady=10, row=8, column=0,
                                                                                   columnspan=10)
     #################---------- 刪除顏色 ----------#################
-    # 選擇國家(為了預購)
-    countryDelRadio = tk.IntVar()
-    countryDelRadio.set(1)
-    Dr1 = tk.Radiobutton(my_window, text='tw/b2b', variable=countryDelRadio, value=1, command=radioColorUpload, font=myfont)
-    Dr1.grid(padx=5, pady=5, row=11, column=1)
-    Dr2 = tk.Radiobutton(my_window, text='io/eu', variable=countryDelRadio, value=2, command=radioColorUpload, font=myfont)
-    Dr2.grid(padx=5, pady=5, row=11, column=2)
-    Dr3 = tk.Radiobutton(my_window, text='fr', variable=countryDelRadio, value=3, command=radioColorUpload, font=myfont)
-    Dr3.grid(padx=5, pady=5, row=11, column=3)
-    Dr3 = tk.Radiobutton(my_window, text='de', variable=countryDelRadio, value=4, command=radioColorUpload, font=myfont)
-    Dr3.grid(padx=5, pady=5, row=11, column=4)
-    Dr3 = tk.Radiobutton(my_window, text='jp', variable=countryDelRadio, value=5, command=radioColorUpload, font=myfont)
-    Dr3.grid(padx=5, pady=5, row=11, column=5)
-    Dr3 = tk.Radiobutton(my_window, text='es', variable=countryDelRadio, value=6, command=radioColorUpload, font=myfont)
-    Dr3.grid(padx=5, pady=5, row=11, column=6)
-    radioColorUpload()
-
 
     coloroklabel = tk.Label(my_window, width=25, text="", bg='#C4E1FF', font=myfont)
     coloroklabel.grid(padx=5, pady=5, row=14, column=5)
+
+    # 路徑以及選擇路徑的按鈕
     tk.Label(my_window, text="路徑:", font=myfont).grid(padx=5, pady=5, row=10, column=1)
     tk.Button(my_window, text="選擇檔案", command=selectPath, font=myfont).grid(padx=5, pady=5, row=10, column=4)
-
     tk.Button(my_window, text="選擇資料夾", command=selectDirColor, font=myfont).grid(padx=5, pady=5, row=10, column=5)
     rootlabel = tk.Label(my_window, width=40, bg="white", font=myfont)
     rootlabel.grid(padx=5, pady=5, row=10, column=2, columnspan=8, sticky=tk.W)
 
+    # 選擇國家(為了預購)
+    countryDelRadio = tk.IntVar()
+    countryDelRadio.set(0)
+    DrArrCountry = ['tw/b2b','io/eu','fr','de','jp','es']
+    DrArr = [""] * len(DrArrCountry)
+    for i in range(len(DrArr)):
+        DrArr[i] = tk.Radiobutton(my_window, text=DrArrCountry[i], variable=countryDelRadio, value=i,
+                                  command=radioColorCountry, font=myfont)
+        DrArr[i].grid(padx=5, pady=10, row=11, column=i+1)
+    radioColorCountry()
+
+    # 選擇上傳stock or shopify
     typeRadio = tk.IntVar()
     typeRadio.set(1)
     outputName = tk.StringVar()
     outputName.set("all_ok")
     rShopify = tk.Radiobutton(my_window, text='上傳Shopify', variable=typeRadio, value=1, command=radioColor, font=myfont)
-    rShopify.grid(padx=5, pady=5, row=12, column=2)
+    rShopify.grid(padx=5, pady=10, row=12, column=2)
     rStock = tk.Radiobutton(my_window, text='上傳stock', variable=typeRadio, value=2, command=radioColor, font=myfont)
-    rStock.grid(padx=5, pady=5, row=12, column=3)
+    rStock.grid(padx=5, pady=10, row=12, column=3)
     radioColor()
 
+    # 新文件檔名以及確定執行按鈕
     tk.Label(my_window, text="新文件檔名:", font=myfont).grid(padx=5, pady=14, row=14, column=1)
     tk.Entry(my_window, textvariable=outputName).grid(padx=5, pady=5, row=14, column=2)
     colorokBtn = tk.Button(my_window, text="確定", command=Makedelete, state=tk.DISABLED, font=myfont)
