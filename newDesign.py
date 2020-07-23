@@ -2,6 +2,7 @@ from __future__ import print_function
 import tkinter as tk
 import tkinter.font as tkFont
 from tkinter import ttk
+import tkinter.messagebox
 import time
 
 import globals as Var
@@ -89,7 +90,7 @@ def updateTime(Msg):
         timeHM = time.strftime("%H:%M", time.localtime())
         Var.updateLabel['text'] = timeHM + "更新"
     elif Msg == "Error Design":
-        Var.updateLabel['text'] = "沒有填到設計師名稱"
+        Var.updateLabel['text'] = "未填設計師名稱"
 
 def getOutputName():
     return Var.outputName.get()
@@ -125,6 +126,11 @@ def radioColorDC():
         rStock['bg'] = '#ffc9c2'
         rShopify['bg'] = '#F0F0F0'
 
+def infoMsg(changePriceMsg):
+    tk.messagebox.showinfo('注意', changePriceMsg)
+
+def checkMsg(countryName):
+    Var.checked = tk.messagebox.askyesnocancel('注意', '確定國家是' + countryName +  '嗎')
 
 #-----------------------------------     GOGOGO     ----------------------------------#
 if __name__ == '__main__':
@@ -149,7 +155,7 @@ if __name__ == '__main__':
     # 更新(重抓google sheet)
     updateBtn = tk.Button(my_window, text="重抓google sheet", command=getData.main, font=myfont)
     updateBtn.grid(padx=5, pady=10, row=5, column=3)
-    Var.updateLabel = tk.Label(my_window, width=10, text="", bg='#C4E1FF')
+    Var.updateLabel = tk.Label(my_window, width=15, text="", bg='#C4E1FF')
     Var.updateLabel.grid(padx=5, pady=10, row=5, column=4)
     Var.UFokLabel = tk.Label(my_window, width=10, text="", bg='#C4E1FF', font=myfont)
     Var.UFokLabel.grid(padx=5, pady=10, row=4, column=4)
@@ -210,7 +216,7 @@ if __name__ == '__main__':
     typeRadio.set(1)
     rShopify = tk.Radiobutton(my_window, text='上傳Shopify', variable=typeRadio, value=1, command=radioColorDC, font=myfont)
     rShopify.grid(padx=5, pady=10, row=12, column=2)
-    rStock = tk.Radiobutton(my_window, text='上傳stock', variable=typeRadio, value=2, command=radioColorDC, font=myfont)
+    rStock = tk.Radiobutton(my_window, text='上傳Stock', variable=typeRadio, value=2, command=radioColorDC, font=myfont)
     rStock.grid(padx=5, pady=10, row=12, column=3)
     radioColorDC()
 

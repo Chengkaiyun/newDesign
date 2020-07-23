@@ -5,6 +5,7 @@ from tkinter import filedialog
 import csv
 import pandas as pd
 import re
+import numpy as np
 
 import globals as Var
 import newDesign as index
@@ -20,12 +21,25 @@ def Makedelete():
         colSKU = 3
     else:
         print("輸入錯囉!!")
-        #quit()
 
-    DeletingColor(colSKU)
+    Var.countryName = Var.Allcountry[Var.DCgetCountry]
+    print(Var.countryName)
+
+    index.checkMsg(Var.countryName)
+
+    if Var.checked:
+        countryPrice()
+        DeletingColor(colSKU)
+    else:
+        return
 
 def DeletingColor(colSKU):
     #  先讀csv檔進來
+    Var.changePrice = False
+    Var.putPreorder = False
+    Var.changePriceMsg = ""
+    Var.putPreorderMsg = ""
+
     try:
         # 單一檔案的
         if Var.fileORdir == 1:
@@ -55,15 +69,32 @@ def DeletingColor(colSKU):
 
             # 開始把要的顏色一行行寫進去: row[colSKU] = 'SSA03173E7-OA06'
             elif row != ['\x1a']:
-                pattern = '[0-9]{5}[A-Z0-9]{2,3}-'
-                PreDevice = re.search(pattern, row[colSKU]).group()
+                pattern_device = '[0-9]{5}[A-Z0-9]{2,3}-'
+                PreDevice = re.search(pattern_device, row[colSKU]).group()
+                pattern_SKU = '-[A-Z]*'
+                designSKU = re.search(pattern_SKU, row[colSKU]).group() # 圖號
 
                 # 如果是需要的顏色
                 if PreDevice in Var.needColor:
                     # 如果有預購狀態 row[8] and 是選擇上傳shopify的
-                    if PreDevice in Var.preOrderDevice and Var.ShopifyStock == 1:
+                    if Var.ShopifyStock == 1 and PreDevice in Var.preOrderDevice:
                         PutPreorder(PreDevice, row)
+
+                    # 如果SKU圖號是要改價錢的設計師
+                    if Var.ShopifyStock == 1 and designSKU in Var.priceFR[0]:
+                        pattern_product = '^[A-Z3]{2,3}'
+                        productLine = re.search(pattern_product, row[colSKU]).group()  # SSA/NPB/3PB/NX/EC/ABA
+                        newPrice(designSKU,productLine,row)
+
                     writer.writerow(row)
+
+        # 如果有改價錢要跳通知
+        if Var.changePrice:
+            index.infoMsg(Var.changePriceMsg)
+
+        # 如果有改價錢要跳通知
+        if Var.putPreorder:
+            index.infoMsg(Var.putPreorderMsg)
 
         index.okLabel("DCok")
         input.close()
@@ -91,6 +122,33 @@ def PutPreorder(PreDevice, row):
     # 把@換成各國的月份，並清除空白(怕月份裡結尾有空白)
     Var.preOrderGlobal = " (" + Var.preOrderGlobal.replace('@', Var.preOrder[Var.DCgetCountry][month + 3].strip()) + ")"
     row[8] = row[8] + Var.preOrderGlobal
+
+    # 如果還沒提是過這個裝置，加入訊息
+    Var.putPreorder = True
+
+    if PreDevice not in Var.putPreorderMsg:
+        Var.putPreorderMsg = Var.putPreorderMsg + PreDevice + " 掛預購 " + Var.preOrderGlobal + "\n"
+
+
+
+def newPrice(designSKU,productLine,row):
+    # Var.priceFR[0] = ['', '-WR', '-OB', '-WL']
+    # Var.deviceFR[0] = ['','SSA','NPB/3PB','NX/EC','ABA']
+
+    index = Var.priceFR[0].index(designSKU) # 找出是第幾個設計師
+    device = [idx for idx, element in enumerate(Var.deviceFR[0]) if productLine in element][0] # 找出是哪個產品線
+    oldPrice = row[19]
+    newPrice = Var.priceFR[device][index]
+
+    if newPrice != "x":
+        Var.changePrice = True
+        row[19] = newPrice
+
+        # 如果還沒提是過這個裝置，加入訊息
+        if productLine not in Var.changePriceMsg:
+            Var.changePriceMsg = Var.changePriceMsg + productLine + " : " + oldPrice + " to " + newPrice + "\n"
+
+
 
 def selectFile():
     Var.fileORdir = 1
@@ -137,10 +195,22 @@ def allInOne():
     all.to_csv(dirRoot + r"/withoutTrim.csv", encoding='utf_8_sig', index=False)  # 存檔至New_Data.csv中
 
 
+# 判斷國家，看要存放哪個國家的價錢資訊
+def countryPrice():
+    Var.priceFR = Var.copy_priceFR[:]
 
+    # 把不是那個國家的價錢資訊刪掉
+    for i in Var.copy_priceFR:
+        if i[0] != '' and Var.countryName not in i[0].strip():
+            Var.priceFR.remove(i)
 
+    # 得到一個轉置矩陣
+    Var.priceFR = np.array(Var.priceFR)
+    Var.deviceFR = Var.priceFR.transpose()
 
+    Var.deviceFR = np.delete(Var.deviceFR,0 ,0) # 刪掉國家那列
+    Var.priceFR = Var.deviceFR.transpose()
 
-
-
-
+    # 再從 nparray 換回 list
+    Var.deviceFR = Var.deviceFR.tolist()
+    Var.priceFR = Var.priceFR .tolist()

@@ -2,15 +2,23 @@ from __future__ import print_function
 import globals as Var
 import getData
 
+
 def mainDC():
     result = getData.sheet.values().get(spreadsheetId=getData.SPREADSHEET_ID,
                                 range=getData.color_RANGE_NAME).execute()
     values = result.get('values', [])
 
     result = getData.sheet.values().get(spreadsheetId=getData.SPREADSHEET_ID,
-                                range='preOrder!A1:Z',
+                                range=getData.preorder_RANGE_NAME,
                                 majorDimension='COLUMNS').execute()
     Var.preOrder = result.get('values', [])
+
+    result = getData.sheet.values().get(spreadsheetId=getData.SPREADSHEET_ID,
+                                range=getData.priceFR_RANGE_NAME,
+                                majorDimension='COLUMNS').execute()
+    Var.priceFR = result.get('values', [])
+
+    Var.copy_priceFR = Var.priceFR[:]
 
     if not values:
         print('No data found.')

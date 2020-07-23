@@ -18,7 +18,8 @@ SPREADSHEET_ID = '1BD1A01VL2Bx_bMBgoc3eCwb9cT4BWI2fzuQdQop8yUo'
 deviceWhich_RANGE_NAME = 'device b2c!A1:Z'
 designer_RANGE_NAME = 'designer!A1:Z'
 color_RANGE_NAME = 'SSA!A2:Z'
-
+preorder_RANGE_NAME = 'preOrder!A1:Z'
+priceFR_RANGE_NAME = 'price-fr!B1:Z'
 
 def main():
     global SPREADSHEET_ID, deviceWhich_RANGE_NAME, designer_RANGE_NAME, color_RANGE_NAME, sheet
@@ -69,5 +70,7 @@ def main():
     Var.preOrder = []
     Var.preOrderDevice = []
     Var.preOrderDate = []
-    Var.Allcountry = ['tw/b2b', 'io/eu', 'fr', 'de', 'jp', 'es']
+    Var.Allcountry = ['TW', 'IO', 'EU', 'FR', 'DE', 'JP', 'ES']
+    Var.changePriceMsg = ""
+    Var.putPreorderMsg = ""
     sheetDC.mainDC()
