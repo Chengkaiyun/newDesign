@@ -10,7 +10,7 @@ import newDesign as index
 def init():
     Var.allBrand = Var.allBrandB2C
     Var.deviceWhich = Var.deviceB2C
-    Var.ChooseSheet = "B2C"
+
 
 # 選擇要存放的路徑 uploadRoot
 def selectDir():
@@ -22,6 +22,7 @@ def selectDir():
 
 def makeFile():
     global fileName
+
     getCountry(Var.UFcountry) # 判斷是要哪個SE
 
     Var.brandNum = len(Var.allBrand[0])

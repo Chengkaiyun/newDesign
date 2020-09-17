@@ -144,10 +144,13 @@ def newPrice(designSKU,productLine,row):
         Var.changePrice = True
         row[19] = newPrice
 
-        # 如果還沒提是過這個裝置，加入訊息
+        # 如果還沒提過這個裝置，加入訊息
         if productLine not in Var.changePriceMsg:
             Var.changePriceMsg = Var.changePriceMsg + productLine + " : " + oldPrice + " to " + newPrice + "\n"
 
+        # 如果是台灣的980貴貴設計師，要加入tag "designers price check"
+        if row[5] != "" and newPrice == "980" and Var.countryName == "TW":
+            row[5] = row[5] + ", designers price check"
 
 
 def selectFile():
